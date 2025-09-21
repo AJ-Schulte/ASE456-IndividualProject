@@ -1,5 +1,3 @@
-
-
 class Card {
   late String id;
   late String name;
@@ -36,14 +34,30 @@ class Card {
     name = parsedJson['name'] as String? ?? '';
     set = parsedJson['set'] as String? ?? '';
     cardType = parsedJson['type'] as String? ?? '';
-    color = parsedJson['needEnergy']['value'] as String? ?? '';
+    color = parsedJson['needEnergy']?['value'] as String? ?? '';
     apCost = int.tryParse(parsedJson['ap']?.toString() ?? '') ?? 0;
     bp = int.tryParse(parsedJson['bp']?.toString() ?? '') ?? 0;
     effect = parsedJson['effect'] as String? ?? '';
     trigger = parsedJson['trigger'] as String? ?? '';
     affinity = parsedJson['affinity'] as String? ?? '';
     rarity = parsedJson['rarity'] as String? ?? '';
-    image = parsedJson['images']['small'] as String? ?? '';
+    image = parsedJson['images']?['small'] as String? ?? '';
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'set': set,
+      'type': cardType,
+      'needEnergy': {'value': color},
+      'ap': apCost,
+      'bp': bp,
+      'effect': effect,
+      'trigger': trigger,
+      'affinity': affinity,
+      'rarity': rarity,
+      'images': {'small': image},
+    };
+  }
 }
