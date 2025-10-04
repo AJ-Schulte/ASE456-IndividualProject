@@ -90,4 +90,91 @@ class APIRunner {
       throw Exception('Failed to load public decks: ${response.statusCode}');
     }
   }
+
+  Future<Map<String, dynamic>?> updateUser(String oldUsername, Map<String, dynamic> updates) async {
+    final response = await http.put(
+      Uri.parse('$backend/users/$oldUsername'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(updates),
+    );
+
+    if (response.statusCode == HttpStatus.ok) {
+      final updatedUser = jsonDecode(response.body);
+      print('User updated: $updatedUser');
+      return updatedUser;
+    } else {
+      print('Failed to update user: ${response.body}');
+      return null;
+    }
+  }
+
+  Future<bool> updateDeck(String username, String deckname, Map<String, dynamic> updates) async {
+    final response = await http.put(
+      Uri.parse('$backend/decks/$username/$deckname'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(updates),
+    );
+
+    if (response.statusCode == HttpStatus.ok) {
+      print('Deck updated: ${response.body}');
+      return true;
+    } else {
+      print('Failed to update deck: ${response.body}');
+      return false;
+    }
+  }
+
+  Future<bool> deleteDeck(String username, String deckname) async {
+    final response = await http.delete(
+      Uri.parse('$backend/decks/$username/$deckname'),
+    );
+
+    if (response.statusCode == HttpStatus.ok) {
+      print('Deck deleted: ${response.body}');
+      return true;
+    } else {
+      print('Failed to delete deck: ${response.body}');
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> signup(String username, String password, String email) async {
+    final response = await http.post(
+      Uri.parse('$backend/signup'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'username': username, 'password': password, 'email': email}),
+    );
+
+    if (response.statusCode == HttpStatus.ok) {
+      return jsonDecode(response.body);
+    } else {
+      print('Signup failed: ${response.body}');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> login(String username, String password) async {
+    final response = await http.post(
+      Uri.parse('$backend/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'username': username, 'password': password}),
+    );
+
+    if (response.statusCode == HttpStatus.ok) {
+      return jsonDecode(response.body);
+    } else {
+      print('Login failed: ${response.body}');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getUser(String username) async {
+    final response = await http.get(Uri.parse('$backend/users/$username'));
+    if (response.statusCode == HttpStatus.ok) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      print('Get user failed: ${response.body}');
+      return null;
+    }
+  }  
 }

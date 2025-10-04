@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:deck_builder/data/util/api.dart';
+import 'package:deck_builder/data/util/user_provider.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -30,26 +32,41 @@ class HomePageState extends State<HomePage> {
         decks = decksReceived;
         loading = false;
       });
-      print('Public Decks Received: $decksReceived');
     } catch (e) {
       setState(() {
         loading = false;
         errorMessage = e.toString();
       });
-      print('Error fetching decks: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = context.watch<UserProvider>();
+    final isLoggedIn = userProvider.isLoggedIn;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Home'),
         actions: [
           IconButton(
-            onPressed: () {Navigator.pushNamed(context, '/login');},
+            icon: Icon(Icons.add),
+            tooltip: 'Create New Deck',
+            onPressed: () {
+              Navigator.pushNamed(context, '/deckBuilder');
+            },
+          ),
+
+          IconButton(
             icon: Icon(Icons.person),
-           ),
+            onPressed: () {
+              if (isLoggedIn) {
+                Navigator.pushNamed(context, '/profile');
+              } else {
+                Navigator.pushNamed(context, '/login');
+              }
+            },
+          ),
         ],
       ),
       body: loading
@@ -63,13 +80,21 @@ class HomePageState extends State<HomePage> {
                       itemBuilder: (context, index) {
                         final deck = decks[index];
                         final deckName = deck['deckname'] ?? 'Unnamed Deck';
-                        final username = deck['username'] ?? 'Unknown User';
+                        final deckOwner = deck['username'] ?? 'Unknown User';
 
                         return Card(
                           margin: EdgeInsets.all(8),
                           child: ListTile(
                             title: Text(deckName),
-                            subtitle: Text('by $username'),
+                            subtitle: Text('by $deckOwner'),
+                            trailing: Icon(Icons.arrow_forward_ios, size: 18),
+                            onTap: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/deckBuilder',
+                                arguments: deckName,
+                              );
+                            },
                           ),
                         );
                       },
