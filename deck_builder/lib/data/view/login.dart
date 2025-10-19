@@ -1,111 +1,130 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:deck_builder/data/util/api.dart';
 import 'package:deck_builder/data/util/user_provider.dart';
+import 'package:deck_builder/data/model/user.dart';
 
 class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
   @override
-  LoginPageState createState() => LoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class LoginPageState extends State<LoginPage> {
-  bool isLogin = true;
+class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-
+  final APIRunner api = APIRunner();
   final TextEditingController usernameController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  bool loading = false;
+  bool isSignup = false;
+
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => loading = true);
+    print('Attempting login with: ${usernameController.text.trim()} / ${passwordController.text.trim()}');
+
+    try {
+      final data = await api.login(
+        usernameController.text.trim(),
+        passwordController.text.trim(),
+      );
+
+      final record = data['record'] as Map<String, dynamic>;
+      final user = User.fromJson(record);
+
+      context.read<UserProvider>().setUser(user);
+
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (r) => false);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Login failed: $e')),
+        );
+      }
+    } finally {
+      setState(() => loading = false);
+    }
+  }
+
+  Future<void> _signup() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => loading = true);
+
+    try {
+      final record = await api.signup(usernameController.text.trim(), emailController.text.trim(), passwordController.text.trim());
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account created! Please log in.')),
+        );
+        setState(() => isSignup = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Signup failed: $e')),
+        );
+      }
+    } finally {
+      setState(() => loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isLogin ? "Login" : "Sign Up"),
-      ),
+      appBar: AppBar(title: Text(isSignup ? 'Sign Up' : 'Login')),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              TextFormField(
-                controller: usernameController,
-                decoration: InputDecoration(labelText: "Username"),
-                validator: (value) =>
-                    value!.isEmpty ? "Please enter your username" : null,
-              ),
-
-              if (!isLogin) ...[
+              if (isSignup) ...[
                 TextFormField(
                   controller: emailController,
-                  decoration: InputDecoration(labelText: "Email"),
-                  validator: (value) =>
-                      value!.isEmpty ? "Please enter your email" : null,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  validator: (v) => v == null || v.isEmpty
+                      ? 'Please enter your email'
+                      : null,
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
               ],
-
+              TextFormField(
+                controller: usernameController,
+                decoration: const InputDecoration(labelText: 'Username'),
+                validator: (v) =>
+                    v == null || v.isEmpty ? 'Please enter your username' : null,
+              ),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: passwordController,
-                decoration: InputDecoration(labelText: "Password"),
                 obscureText: true,
-                validator: (value) =>
-                    value!.isEmpty ? "Please enter your password" : null,
+                decoration: const InputDecoration(labelText: 'Password'),
+                validator: (v) =>
+                    v == null || v.isEmpty ? 'Please enter your password' : null,
               ),
-
-              if (!isLogin) ...[
-                SizedBox(height: 12),
-                TextFormField(
-                  controller: confirmPasswordController,
-                  decoration: InputDecoration(labelText: "Confirm Password"),
-                  obscureText: true,
-                  validator: (value) =>
-                      value != passwordController.text ? "Passwords don't match" : null,
-                ),
-              ],
-
-              SizedBox(height: 24),
+              const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () async {
-                  if (_formKey.currentState!.validate()) {
-                    bool success = false;
-
-                    if (isLogin) {
-                      success = await userProvider.login(
-                        usernameController.text.trim(),
-                        passwordController.text.trim(),
-                      );
-                    } else {
-                      success = await userProvider.signup(
-                        usernameController.text.trim(),
-                        passwordController.text.trim(),
-                        emailController.text.trim(),
-                      );
-                    }
-
-                    if (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(isLogin ? "Login successful!" : "Signup successful!")),
-                      );
-                      Navigator.pushNamedAndRemoveUntil(context, '/home', (r)=>false);
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(isLogin ? "Login failed" : "Signup failed")),
-                      );
-                    }
-                  }
-                },
-                child: Text(isLogin ? "Login" : "Sign Up"),
+                onPressed: loading
+                    ? null
+                    : isSignup
+                        ? _signup
+                        : _login,
+                child: loading
+                    ? const CircularProgressIndicator()
+                    : Text(isSignup ? 'Create Account' : 'Login'),
               ),
-
+              const SizedBox(height: 16),
               TextButton(
-                onPressed: () => setState(() => isLogin = !isLogin),
-                child: Text(isLogin
-                    ? "Don't have an account? Sign up"
-                    : "Already have an account? Log in"),
+                onPressed: () => setState(() => isSignup = !isSignup),
+                child: Text(isSignup
+                    ? 'Already have an account? Log in'
+                    : 'No account? Sign up'),
               ),
             ],
           ),

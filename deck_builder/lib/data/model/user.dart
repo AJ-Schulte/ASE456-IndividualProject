@@ -1,27 +1,27 @@
 class User {
-  late String username;
-  late String password;
-  late String email;
+  final String id;       // PocketBase record ID
+  final String username;
+  final String email;
 
-  User( 
-    {
-      required this.username,
-      required this.password,
-      required this.email
-    }
-  );
+  User({
+    required this.id,
+    required this.username,
+    required this.email,
+  });
 
-  User.fromJson(Map<String, dynamic> parsedJson) {
-    username = parsedJson['username'] as String? ?? '';
-    password = parsedJson['password'] as String? ?? '';
-    email = parsedJson['email'] as String? ?? '';
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] as String? ?? '',
+      username: json['username'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+    );
   }
 
-   Map<String, dynamic> toJson() {
+  Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'username': username,
-      'password': password,
       'email': email,
     };
-   }
+  }
 }

@@ -43,6 +43,7 @@ dependencies:
   shelf: ^1.4.2
   provider: ^6.1.2
   shelf_router: ^1.1.4
+  pocketbase: ^0.9.0
 
 dev_dependencies:
   flutter_test:

@@ -1,32 +1,38 @@
-import 'card.dart';
 class Deck {
-  late List<Card> cards;
-  late String username;
-  late String deckname;
-  late bool public;
+  final String id;
+  final String userId; 
+  final String deckname;
+  final bool public;
+  final List<Map<String, dynamic>> cards;
 
-  Deck( 
-    {
-      required this.cards,
-      required this.deckname,
-      required this.public,
-      required this.username
-    }
-  );
+  Deck({
+    required this.id,
+    required this.userId,
+    required this.deckname,
+    required this.public,
+    required this.cards,
+  });
 
-  Deck.fromJson(Map<String, dynamic> parsedJson) {
-    cards = (parsedJson['decklist'] as List<dynamic>?)?.map((decklist) => Card.fromJson(decklist)).toList() ?? [];
-    username = parsedJson['username'] as String? ?? '';
-    deckname = parsedJson['deckname'] as String? ?? '';
-    public = parsedJson['public'] as bool? ?? false;
+  factory Deck.fromJson(Map<String, dynamic> json) {
+    return Deck(
+      id: json['id'] ?? '',
+      userId: json['userId'] ?? '',
+      deckname: json['deckname'] ?? '',
+      public: json['public'] ?? false,
+      cards: (json['decklist'] as List?)
+              ?.map((c) => Map<String, dynamic>.from(c))
+              .toList() ??
+          [],
+    );
   }
 
-   Map<String, dynamic> toJson() {
+  Map<String, dynamic> toJson() {
     return {
-      'username': username,
-      'deckname': deckname,
+      'id': id,
+      'userId': userId,
+      'deckName': deckname,
       'public': public,
-      'cards': cards.map((card) => card.toJson()).toList(),
+      'decklist': cards,
     };
-   }
+  }
 }

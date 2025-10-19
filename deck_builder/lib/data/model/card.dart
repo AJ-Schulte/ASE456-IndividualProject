@@ -1,63 +1,114 @@
 class Card {
-  late String id;
-  late String name;
-  late String set;
-  late String cardType;
-  late String color;
-  late int apCost;
-  late int bp;
-  late String effect;
-  late String trigger;
-  late String affinity;
-  late String rarity;
-  late String image;
+  String id;
+  String cardNo;
+  String name;
+  String seriesName;
+  String series;
+  String category; 
+  String color;
+  int ap;
+  int bp;
+  String effect;
+  String trigger;
+  String attribute;
+  String rarity;
+  String image;
+  String requiredEnergy;
+  String generatedEnergy;
+  String keywords;
+  String marketPrice;
 
-  Card(
-    {
-      required this.id,
-      required this.name,
-      required this.set,
-      required this.cardType,
-      required this.color,
-      required this.apCost,
-      required this.bp,
-      required this.effect,
-      required this.trigger,
-      required this.affinity,
-      required this.rarity,
-      required this.image
-    }
-  );
+  Card({
+    required this.id,
+    this.cardNo = '',
+    this.name = '',
+    this.seriesName = '',
+    this.series = '',
+    this.category = '',
+    this.color = '',
+    this.ap = 0,
+    this.bp = 0,
+    this.effect = '',
+    this.trigger = '',
+    this.attribute = '',
+    this.rarity = '',
+    this.image = '',
+    this.requiredEnergy = '',
+    this.generatedEnergy = '',
+    this.keywords = '',
+    this.marketPrice = '',
+  });
 
-  Card.fromJson(Map<String, dynamic> parsedJson) {
-    id = parsedJson['id'] as String? ?? '';
-    name = parsedJson['name'] as String? ?? '';
-    set = parsedJson['set'] as String? ?? '';
-    cardType = parsedJson['type'] as String? ?? '';
-    color = parsedJson['needEnergy']?['value'] as String? ?? '';
-    apCost = int.tryParse(parsedJson['ap']?.toString() ?? '') ?? 0;
-    bp = int.tryParse(parsedJson['bp']?.toString() ?? '') ?? 0;
-    effect = parsedJson['effect'] as String? ?? '';
-    trigger = parsedJson['trigger'] as String? ?? '';
-    affinity = parsedJson['affinity'] as String? ?? '';
-    rarity = parsedJson['rarity'] as String? ?? '';
-    image = parsedJson['images']?['small'] as String? ?? '';
+  factory Card.empty(String name) {
+    return Card(
+      id: '',
+      name: name,
+      seriesName: '',
+      series: '',
+      category: '',
+      color: '',
+      ap: 0,
+      bp: 0,
+      effect: '',
+      trigger: '',
+      attribute: '',
+      rarity: '',
+      image: '',
+      requiredEnergy: '',
+      generatedEnergy: '',
+      keywords: '',
+      marketPrice: '',
+    );
+  }
+
+  factory Card.fromPocketBaseJson(Map<String, dynamic> json) {
+    final data = json['record'] ?? json;
+
+    return Card(
+      id: data['id'] as String? ?? '',
+      cardNo: data['cardNo'] as String? ?? '',
+      name: data['name'] as String? ?? '',
+      seriesName: data['seriesName'] as String? ?? '',
+      series: data['series'] as String? ?? '',
+      category: data['categoryData'] as String? ?? '',
+      color: data['color'] as String? ?? '',
+      ap: (data['apData'] is num)
+          ? (data['apData'] as num).toInt()
+          : int.tryParse((data['apData'] ?? '0').toString()) ?? 0,
+      bp: (data['bpData'] is num)
+          ? (data['bpData'] as num).toInt()
+          : int.tryParse((data['bpData'] ?? '0').toString()) ?? 0,
+      effect: data['effectData'] as String? ?? '',
+      trigger: data['triggerData'] as String? ?? '',
+      attribute: data['attributeData'] as String? ?? '',
+      rarity: data['rarity'] as String? ?? '',
+      image: data['image'] as String? ?? '',
+      requiredEnergy: data['needEnergyData'] as String? ?? '',
+      generatedEnergy: data['generatedEnergyData'] as String? ?? '',
+      keywords: data['keywords'] as String? ?? '',
+      marketPrice: data['marketPrice'] as String? ?? '',
+    );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      'cardNo': cardNo,
       'name': name,
-      'set': set,
-      'type': cardType,
-      'needEnergy': {'value': color},
-      'ap': apCost,
-      'bp': bp,
-      'effect': effect,
-      'trigger': trigger,
-      'affinity': affinity,
+      'seriesName': seriesName,
+      'series': series,
+      'categoryData': category,
+      'color': color,
+      'apData': ap,
+      'bpData': bp,
+      'effectData': effect,
+      'triggerData': trigger,
+      'attributeData': attribute,
       'rarity': rarity,
-      'images': {'small': image},
+      'image': image,
+      'needEnergyData': requiredEnergy,
+      'generatedEnergyData': generatedEnergy,
+      'keywords': keywords,
+      'marketPrice': marketPrice,
     };
   }
 }

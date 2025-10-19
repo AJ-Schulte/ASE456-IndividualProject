@@ -1,42 +1,41 @@
 import 'package:flutter/foundation.dart';
-import 'package:deck_builder/data/util/api.dart';
+import '../model/user.dart';
 
 class UserProvider with ChangeNotifier {
-  final APIRunner apiRunner = APIRunner();
+  User? _currentUser;
 
-  Map<String, dynamic>? _currentUser;
-  Map<String, dynamic>? get currentUser => _currentUser;
-
+  User? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null;
 
-  Future<bool> login(String username, String password) async {
-    final userData = await apiRunner.login(username, password);
-    if (userData != null) {
-      _currentUser = userData;
-      notifyListeners();
-      return true;
-    }
-    return false;
-  }
-
-  Future<bool> signup(String username, String password, String email) async {
-    final userData = await apiRunner.signup(username, password, email);
-    if (userData != null) {
-      _currentUser = userData;
-      notifyListeners();
-      return true;
-    }
-    return false;
-  }
-
-  void setUser(Map<String, dynamic> userData) {
-    _currentUser = userData;
+  void setUser(User user) {
+    _currentUser = user;
     notifyListeners();
   }
 
-  
   void logout() {
     _currentUser = null;
     notifyListeners();
+  }
+
+  void updateEmail(String email) {
+    if (_currentUser != null) {
+      _currentUser = User(
+        id: _currentUser!.id,
+        username: _currentUser!.username,
+        email: email,
+      );
+      notifyListeners();
+    }
+  }
+
+  void updateUsername(String username) {
+    if (_currentUser != null) {
+      _currentUser = User(
+        id: _currentUser!.id,
+        username: username,
+        email: _currentUser!.email,
+      );
+      notifyListeners();
+    }
   }
 }
