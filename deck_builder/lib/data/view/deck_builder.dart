@@ -4,6 +4,10 @@ import 'package:deck_builder/data/model/card.dart' as CardModel;
 import 'package:deck_builder/data/model/deck.dart';
 import 'package:deck_builder/data/util/api.dart';
 import 'package:deck_builder/data/util/user_provider.dart';
+import 'package:deck_builder/data/util/deck_utils.dart';
+import 'package:deck_builder/data/util/deck_filters.dart';
+import 'package:deck_builder/data/view/card_selection_panel.dart';
+import 'package:deck_builder/data/view/deck_panel.dart';
 
 class DeckBuilderPage extends StatefulWidget {
   final Deck? existingDeck;
@@ -16,8 +20,9 @@ class DeckBuilderPage extends StatefulWidget {
 class DeckBuilderPageState extends State<DeckBuilderPage> {
   final APIRunner api = APIRunner();
 
+  Map<String, String> seriesMap = {};
   List<CardModel.Card> allCards = [];
-  Map<String, int> decklist = {}; // card name -> quantity
+  Map<String, int> decklist = {};
   Map<String, CardModel.Card> deckCardDetails = {};
   String deckname = '';
   bool isPublic = false;
@@ -25,14 +30,12 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
   bool loading = true;
   bool loadingCards = false;
 
-  // Filters
   String selectedSet = '';
   String? selectedColor;
   String? selectedType;
   String? selectedRarity;
   String? selectedAffinity;
 
-  List<String> availableSets = [];
   List<String> availableColors = [];
   List<String> availableTypes = [];
   List<String> availableRarities = [];
@@ -46,57 +49,46 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
 
   Future<void> _initDeck() async {
     try {
-      final sample = await api.getCards(perPage: 200);
-      availableSets = sample.map((c) => c.series).toSet().toList();
-      availableColors = sample.map((c) => c.color).toSet().toList();
-      availableTypes = sample.map((c) => c.category).toSet().toList();
-      availableRarities = sample.map((c) => c.rarity).toSet().toList();
-      availableAffinities = sample.map((c) => c.attribute).toSet().toList();
+      seriesMap = await api.getAllSeries();
+      final filters = await api.getDeckFilters();
+      availableColors = filters['colors']!;
+      availableTypes = filters['types']!;
+      availableRarities = filters['rarities']!;
+      availableAffinities = filters['affinities']!;
 
       if (widget.existingDeck != null) {
         deckname = widget.existingDeck!.deckname;
         isPublic = widget.existingDeck!.public;
-
         final currentUser = context.read<UserProvider>().currentUser;
-        final currentUserId = currentUser?.id ?? '';
-        isEditable = widget.existingDeck!.userId == currentUserId;
+        isEditable = widget.existingDeck!.userId == currentUser?.id;
 
         for (var card in widget.existingDeck!.cards) {
-          final name = card['cardname'] ?? '';
-          if (name.isNotEmpty) {
-            decklist[name] = (decklist[name] ?? 0) + ((card['quantity'] ?? 1) as int);
-          }
+          final cardNo = card['cardNo'] ?? '';
+          if (cardNo.isNotEmpty) decklist[cardNo] = (decklist[cardNo] ?? 0) + ((card['quantity'] ?? 1) as int);
         }
 
-        // Load initial set
-        if (widget.existingDeck!.cards.isNotEmpty) {
-          final firstName = widget.existingDeck!.cards.first['cardname'];
-          if (firstName != null) {
+        if (decklist.isNotEmpty) {
+          final firstCardNo = widget.existingDeck!.cards.first['cardNo'];
+          if (firstCardNo != null) {
             try {
-              final firstCard = await api.getCardByName(firstName);
+              final firstCard = await api.getCardByCardNo(firstCardNo);
               selectedSet = firstCard.series;
             } catch (_) {}
           }
-        }
-
-        // Load all card details
-        if (decklist.isNotEmpty) {
-          final results = await Future.wait(decklist.keys.map(api.getCardByName));
+          final results = await Future.wait(decklist.keys.map(api.getCardByCardNo));
           for (int i = 0; i < decklist.keys.length; i++) {
             deckCardDetails[decklist.keys.elementAt(i)] = results[i];
           }
         }
       }
 
-      if (selectedSet.isNotEmpty) {
-        await _loadCardsForSet(selectedSet);
-      }
+      if (selectedSet.isNotEmpty) await _loadCardsForSet(selectedSet);
 
       setState(() => loading = false);
     } catch (e, st) {
       setState(() => loading = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error loading deck builder: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading deck builder: $e')));
       debugPrint(st.toString());
     }
   }
@@ -107,8 +99,8 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
       final cards = await api.getCards(series: set, perPage: 200);
       setState(() => allCards = cards);
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Failed to load cards for $set: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load cards for set: $e')));
     } finally {
       setState(() => loadingCards = false);
     }
@@ -116,7 +108,6 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
 
   List<CardModel.Card> get filteredCards {
     return allCards.where((c) {
-      if (selectedSet.isNotEmpty && c.series != selectedSet) return false;
       if (selectedColor != null && c.color != selectedColor) return false;
       if (selectedType != null && c.category != selectedType) return false;
       if (selectedRarity != null && c.rarity != selectedRarity) return false;
@@ -125,272 +116,156 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
     }).toList();
   }
 
-  void addCard(CardModel.Card card) {
-    if (!isEditable) return;
-    final total = decklist.values.fold(0, (a, b) => a + b);
-    if (total >= 50) return;
-    final count = decklist[card.name] ?? 0;
-    if (count >= 4) return;
-
-    setState(() => decklist[card.name] = count + 1);
-    if (!deckCardDetails.containsKey(card.name)) {
-      api.getCardByName(card.name).then((c) {
-        setState(() => deckCardDetails[card.name] = c);
-      }).catchError((_) {});
-    }
-  }
-
-  void removeCard(CardModel.Card card) {
-    if (!isEditable) return;
-    final count = decklist[card.name] ?? 0;
-    if (count <= 0) return;
-    setState(() {
-      final newCount = count - 1;
-      if (newCount <= 0) {
-        decklist.remove(card.name);
-        deckCardDetails.remove(card.name);
-      } else {
-        decklist[card.name] = newCount;
-      }
-    });
-  }
-
-  Future<void> saveDeck() async {
-    if (!isEditable) return;
-    final total = decklist.values.fold(0, (a, b) => a + b);
-    if (deckname.isEmpty || total != 50) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Deck name required and must have 50 cards')),
-      );
-      return;
-    }
-
-    final currentUser = context.read<UserProvider>().currentUser;
-    if (currentUser == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('You must be logged in to save decks')));
-      return;
-    }
-
-    try {
-      bool exists = false;
-      try {
-        final existing = await api.getDeckById(widget.existingDeck?.id ?? '');
-        exists = existing != null;
-      } catch (_) {
-        exists = false;
-      }
-
-      if (exists) {
-        await api.updateDeck(currentUser.id, deckname, isPublic, decklist);
-      } else {
-        await api.saveDeck(currentUser.id, deckname, isPublic, decklist);
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Deck saved successfully!')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Save failed: $e')));
-    }
-  }
-
-  void openFilterModal() {
+  void _viewCard(CardModel.Card card) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Filters'),
-        content: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildDropdown('Color', availableColors, selectedColor,
-                  (v) => setState(() => selectedColor = v)),
-              _buildDropdown('Type', availableTypes, selectedType,
-                  (v) => setState(() => selectedType = v)),
-              _buildDropdown('Rarity', availableRarities, selectedRarity,
-                  (v) => setState(() => selectedRarity = v)),
-              _buildDropdown('Affinity', availableAffinities, selectedAffinity,
-                  (v) => setState(() => selectedAffinity = v)),
-            ],
+      builder: (_) => Dialog(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (card.image.isNotEmpty)
+                  Image.network(
+                    card.image,
+                    width: 160,
+                    height: 230,
+                    fit: BoxFit.contain,
+                  ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(card.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Text('Card No: ${card.cardNo}'),
+                      Text('Set: ${seriesMap[card.series] ?? card.series}'),
+                      Text('Color: ${card.color}'),
+                      Text('Rarity: ${card.rarity}'),
+                      Text('Type: ${card.category}'),
+                      Text('Power (BP): ${card.bp}'),
+                      Text('AP Cost: ${card.ap}'),
+                      Text('Energy Cost: ${card.requiredEnergy}'),
+                      Text('Energy Gen: ${card.generatedEnergy}'),
+                      const SizedBox(height: 8),
+                      Text('Effect:', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text(card.effect),
+                      if (card.trigger.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text('Trigger:', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text(card.trigger),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
       ),
-    );
-  }
-
-  DropdownButton<String> _buildDropdown(
-    String label,
-    List<String> items,
-    String? selected,
-    Function(String?) onChanged,
-  ) {
-    return DropdownButton<String>(
-      hint: Text(label),
-      isExpanded: true,
-      value: selected,
-      items: [null, ...items]
-          .map((c) => DropdownMenuItem(value: c, child: Text(c ?? 'Any')))
-          .toList(),
-      onChanged: onChanged,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditable ? 'Deck Builder' : 'View Deck'),
         actions: [
-          if (isEditable) IconButton(icon: const Icon(Icons.save), onPressed: saveDeck),
-          IconButton(icon: const Icon(Icons.filter_alt), onPressed: openFilterModal),
+          if (isEditable)
+            IconButton(
+              icon: const Icon(Icons.save),
+              onPressed: () => saveDeck(decklist, deckCardDetails, deckname, isPublic, api, context, widget.existingDeck),
+            ),
+          IconButton(
+            icon: const Icon(Icons.filter_alt),
+            onPressed: () => showDeckFilters(
+              context: context,
+              colors: availableColors,
+              types: availableTypes,
+              rarities: availableRarities,
+              affinities: availableAffinities,
+              selectedColor: selectedColor,
+              selectedType: selectedType,
+              selectedRarity: selectedRarity,
+              selectedAffinity: selectedAffinity,
+              onColorChanged: (v) => setState(() => selectedColor = v),
+              onTypeChanged: (v) => setState(() => selectedType = v),
+              onRarityChanged: (v) => setState(() => selectedRarity = v),
+              onAffinityChanged: (v) => setState(() => selectedAffinity = v),
+            ),
+          ),
         ],
       ),
       body: Row(
         children: [
-          _buildCardSelectionPanel(),
-          _buildDeckPanel(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCardSelectionPanel() {
-    return Expanded(
-      flex: 1,
-      child: Column(
-        children: [
-          if (selectedSet.isEmpty)
-            SizedBox(
-              height: 120,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: availableSets.map((s) {
-                  return GestureDetector(
-                    onTap: () async {
-                      setState(() => selectedSet = s);
-                      await _loadCardsForSet(s);
-                    },
-                    child: Container(
-                      width: 140,
-                      margin: const EdgeInsets.all(6),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(child: Text(s, textAlign: TextAlign.center)),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          if (selectedSet.isNotEmpty)
-            Expanded(
-              child: loadingCards
-                  ? const Center(child: CircularProgressIndicator())
-                  : GridView.builder(
-                      padding: const EdgeInsets.all(8),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        childAspectRatio: 0.62,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                      ),
-                      itemCount: filteredCards.length,
-                      itemBuilder: (context, index) {
-                        final card = filteredCards[index];
-                        final count = decklist[card.name] ?? 0;
-                        return _buildCardTile(card, count);
-                      },
-                    ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCardTile(CardModel.Card card, int count) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.black12),
-        borderRadius: BorderRadius.circular(6),
-        color: Colors.white,
-      ),
-      child: Column(
-        children: [
+          // Left: Series + Card Selection Panel (50% width)
           Expanded(
-            child: card.image.isNotEmpty
-                ? Image.network(card.image, fit: BoxFit.cover, width: double.infinity)
-                : Container(color: Colors.grey[100]),
+            flex: 1,
+            child: selectedSet.isEmpty
+                ? ListView(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    children: seriesMap.entries.map((e) {
+                      final seriesKey = e.key;
+                      final seriesName = e.value;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
+                          onPressed: () async {
+                            setState(() => selectedSet = seriesKey);
+                            await _loadCardsForSet(seriesKey);
+                          },
+                          child: Text(seriesName, textAlign: TextAlign.center),
+                        ),
+                      );
+                    }).toList(),
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min, // prevent unbounded height error
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: ElevatedButton.icon(
+                          onPressed: () => setState(() => selectedSet = ''),
+                          icon: const Icon(Icons.arrow_back),
+                          label: const Text('Back to Series'),
+                        ),
+                      ),
+                      Flexible(
+                        child: CardSelectionPanel(
+                          cards: filteredCards,
+                          decklist: decklist,
+                          onAdd: (c) => addCard(decklist, deckCardDetails, c, api, setState),
+                          onRemove: (c) => removeCard(decklist, deckCardDetails, c, api, setState),
+                          loading: loadingCards,
+                          selectedSet: selectedSet,
+                          availableSets: const [],
+                          onSetSelected: (_) {},
+                          onView: _viewCard,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            child: Text(card.name,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(icon: const Icon(Icons.remove), onPressed: () => removeCard(card)),
-              Text('$count'),
-              IconButton(icon: const Icon(Icons.add), onPressed: () => addCard(card)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildDeckPanel() {
-    return Expanded(
-      flex: 1,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: TextEditingController(text: deckname),
-              onChanged: (v) => setState(() => deckname = v),
-              decoration: const InputDecoration(labelText: 'Deck Name'),
-            ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('Public'),
-              Switch(
-                value: isPublic,
-                onChanged: isEditable ? (v) => setState(() => isPublic = v) : null,
-              ),
-            ],
-          ),
+          // Right: Deck Panel (50% width)
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(8),
-              children: decklist.entries.map((entry) {
-                final card = deckCardDetails[entry.key] ??
-                    CardModel.Card.empty(entry.key);
-                return ListTile(
-                  leading: card.image.isNotEmpty
-                      ? Image.network(card.image, width: 60, fit: BoxFit.cover)
-                      : const SizedBox(width: 60),
-                  title: Text('${card.name} x${entry.value}'),
-                );
-              }).toList(),
+            flex: 1,
+            child: DeckPanel(
+              deckname: deckname,
+              onDeckNameChanged: (v) => setState(() => deckname = v),
+              isPublic: isPublic,
+              onPublicChanged: isEditable ? (v) => setState(() => isPublic = v) : (_) {},
+              decklist: decklist,
+              deckCardDetails: deckCardDetails,
+              onView: _viewCard,
+              onAdd: (card) => addCard(decklist, deckCardDetails, card, api, setState),
+              onRemove: (card) => removeCard(decklist, deckCardDetails, card, api, setState),
             ),
           ),
         ],

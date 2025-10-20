@@ -13,10 +13,10 @@ class Card {
   String attribute;
   String rarity;
   String image;
-  String requiredEnergy;
-  String generatedEnergy;
+  int requiredEnergy;
+  int generatedEnergy;
   String keywords;
-  String marketPrice;
+  double marketPrice;
 
   Card({
     required this.id,
@@ -33,10 +33,10 @@ class Card {
     this.attribute = '',
     this.rarity = '',
     this.image = '',
-    this.requiredEnergy = '',
-    this.generatedEnergy = '',
+    this.requiredEnergy = 0,
+    this.generatedEnergy = 0,
     this.keywords = '',
-    this.marketPrice = '',
+    this.marketPrice = 0.0,
   });
 
   factory Card.empty(String name) {
@@ -54,39 +54,52 @@ class Card {
       attribute: '',
       rarity: '',
       image: '',
-      requiredEnergy: '',
-      generatedEnergy: '',
+      requiredEnergy: 0,
+      generatedEnergy: 0,
       keywords: '',
-      marketPrice: '',
+      marketPrice: 0.0,
     );
   }
 
   factory Card.fromPocketBaseJson(Map<String, dynamic> json) {
     final data = json['record'] ?? json;
 
+    String parseString(dynamic value) {
+      if (value == null) return '';
+      return value.toString();
+    }
+
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value.toString()) ?? 0;
+    }
+
+    double parseDouble(dynamic value) {
+      if (value is double) return value;
+      if (value is num) return value.toDouble();
+      return double.tryParse(value.toString()) ?? 0.0;
+    }
+
     return Card(
-      id: data['id'] as String? ?? '',
-      cardNo: data['cardNo'] as String? ?? '',
-      name: data['name'] as String? ?? '',
-      seriesName: data['seriesName'] as String? ?? '',
-      series: data['series'] as String? ?? '',
-      category: data['categoryData'] as String? ?? '',
-      color: data['color'] as String? ?? '',
-      ap: (data['apData'] is num)
-          ? (data['apData'] as num).toInt()
-          : int.tryParse((data['apData'] ?? '0').toString()) ?? 0,
-      bp: (data['bpData'] is num)
-          ? (data['bpData'] as num).toInt()
-          : int.tryParse((data['bpData'] ?? '0').toString()) ?? 0,
-      effect: data['effectData'] as String? ?? '',
-      trigger: data['triggerData'] as String? ?? '',
-      attribute: data['attributeData'] as String? ?? '',
-      rarity: data['rarity'] as String? ?? '',
-      image: data['image'] as String? ?? '',
-      requiredEnergy: data['needEnergyData'] as String? ?? '',
-      generatedEnergy: data['generatedEnergyData'] as String? ?? '',
-      keywords: data['keywords'] as String? ?? '',
-      marketPrice: data['marketPrice'] as String? ?? '',
+      id: parseString(data['id']),
+      cardNo: parseString(data['cardNo']),
+      name: parseString(data['name']),
+      seriesName: parseString(data['seriesName']),
+      series: parseString(data['series']),
+      category: parseString(data['categoryData']),
+      color: parseString(data['color']),
+      ap: parseInt(data['apData']),
+      bp: parseInt(data['bpData']),
+      effect: parseString(data['effectData']),
+      trigger: parseString(data['triggerData']),
+      attribute: parseString(data['attributeData']),
+      rarity: parseString(data['rarity']),
+      image: parseString(data['image']),
+      requiredEnergy: parseInt(data['needEnergyData']),
+      generatedEnergy: parseInt(data['generatedEnergyData']),
+      keywords: parseString(data['keywords']),
+      marketPrice: parseDouble(data['marketPrice']),
     );
   }
 
