@@ -211,15 +211,14 @@ class APIRunner {
     Map<String, int> decklist,
     Map<String, CardModel.Card> deckCardDetails,
   ) async {
-    // Validate deck rules before saving
     _validateDeck(decklist, deckCardDetails);
 
     final body = {
       'userId': userId,
       'deckName': deckname,
       'public': isPublic,
-      'cards': decklist.entries
-          .map((e) => {'cardname': e.key, 'quantity': e.value})
+      'decklist': decklist.entries
+          .map((e) => {'cardNo': e.key, 'quantity': e.value})
           .toList(),
     };
 
@@ -249,10 +248,10 @@ class APIRunner {
     _validateDeck(decklist, deckCardDetails);
 
     final body = {
-      'deckname': deckname,
+      'deckName': deckname,
       'public': isPublic,
-      'cards': decklist.entries
-          .map((e) => {'cardname': e.key, 'quantity': e.value})
+      'decklist': decklist.entries
+          .map((e) => {'cardNo': e.key, 'quantity': e.value})
           .toList(),
     };
 
@@ -312,30 +311,61 @@ class APIRunner {
     }
   }
 
-  // ---------------- VALIDATION ----------------
+    // ---------------- VALIDATION ----------------
   void _validateDeck(
-    Map<String, int> decklist,
-    Map<String, CardModel.Card> deckCardDetails,
-  ) {
-    int totalCards = 0;
-    int totalAP = 0;
+  Map<String, int> decklist,
+  Map<String, CardModel.Card> deckCardDetails,
+) {
+  int totalMain = 0;
+  int totalAP = 0;
+  Map<String, int> triggerCount = {};
 
-    decklist.forEach((cardNo, qty) {
-      final card = deckCardDetails[cardNo];
-      if (card != null) {
-        if (card.category.toLowerCase() == 'action point') {
-          totalAP += qty;
-        } else {
-          totalCards += qty;
+  // ✅ Triggers that are limited to 4 copies
+  const limitedTriggers = ['color', 'special', 'final'];
+
+  decklist.forEach((cardNo, qty) {
+    final card = deckCardDetails[cardNo];
+    if (card == null) return;
+
+    final type = card.category.toLowerCase();
+
+    if (type.contains('action point')) {
+      totalAP += qty;
+    } else {
+      totalMain += qty;
+    }
+
+    if (card.trigger.isNotEmpty) {
+      // Normalize trigger text for matching
+      final triggerKey = card.trigger.trim().toLowerCase();
+
+      // Detect limited triggers by keyword presence
+      for (final keyword in limitedTriggers) {
+        if (triggerKey.contains(keyword)) {
+          triggerCount[keyword] = (triggerCount[keyword] ?? 0) + qty;
+          break; // Only count once per card
         }
       }
-    });
+    }
+  });
 
-    if (totalCards > 50) {
-      throw Exception('Deck has $totalCards cards. Max allowed is 50 (excluding AP cards).');
-    }
-    if (totalAP > 3) {
-      throw Exception('Deck has $totalAP Action Point cards. Max allowed is 3.');
-    }
+  // --- VALIDATION RULES ---
+  if (totalMain != 50) {
+    throw Exception(
+        'Main deck must contain exactly 50 cards (currently $totalMain).');
   }
+
+  if (totalAP > 3) {
+    throw Exception('You can only include up to 3 Action Point cards.');
+  }
+
+  // --- Trigger limits ---
+  triggerCount.forEach((trigger, count) {
+    if (count > 4) {
+      throw Exception(
+          'Too many cards with $trigger triggers (max 4, found $count).');
+    }
+  });
+}
+
 }

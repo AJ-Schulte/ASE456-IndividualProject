@@ -17,7 +17,7 @@ class Deck {
     return Deck(
       id: json['id'] ?? '',
       userId: json['userId'] ?? '',
-      deckname: json['deckname'] ?? '',
+      deckname: json['deckName'] ?? '',
       public: json['public'] ?? false,
       cards: (json['decklist'] as List?)
               ?.map((c) => Map<String, dynamic>.from(c))

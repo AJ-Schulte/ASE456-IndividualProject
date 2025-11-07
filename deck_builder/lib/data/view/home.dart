@@ -15,6 +15,7 @@ class HomePageState extends State<HomePage> {
   List<Deck> decks = [];
   bool loading = true;
   String? errorMessage;
+  final Map<String, String> userNames = {}; 
 
   @override
   void initState() {
@@ -29,6 +30,20 @@ class HomePageState extends State<HomePage> {
     });
     try {
       final decksReceived = await api.getPublicDecks();
+
+      final uniqueUserIds = decksReceived.map((d) => d.userId).toSet();
+      for (final id in uniqueUserIds) {
+        if (id.isEmpty) continue;
+        if (!userNames.containsKey(id)) {
+          try {
+            final userJson = await api.getUserById(id);
+            userNames[id] = userJson['username'] ?? 'Unknown';
+          } catch (e) {
+            userNames[id] = 'Unknown';
+          }
+        }
+      }
+
       setState(() {
         decks = decksReceived.map((d) => Deck.fromJson(d.toJson())).toList();
         loading = false;
@@ -40,6 +55,7 @@ class HomePageState extends State<HomePage> {
       });
     }
   }
+
 
   void openDeck(Deck deck) async {
     setState(() => loading = true);
@@ -115,7 +131,7 @@ class HomePageState extends State<HomePage> {
                             margin: const EdgeInsets.all(8),
                             child: ListTile(
                               title: Text(deck.deckname.isEmpty ? 'Unnamed Deck' : deck.deckname),
-                              subtitle: Text('by ${deck.userId}'),
+                              subtitle: Text('by ${userNames[deck.userId] ?? "Loading..."}'),
                               trailing: const Icon(Icons.arrow_forward_ios, size: 18),
                               onTap: () => openDeck(deck),
                             ),

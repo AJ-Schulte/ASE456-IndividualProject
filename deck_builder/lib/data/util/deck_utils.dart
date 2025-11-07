@@ -4,7 +4,6 @@ import 'package:deck_builder/data/model/deck.dart';
 import 'package:deck_builder/data/util/api.dart';
 import 'package:deck_builder/data/util/user_provider.dart';
 import 'package:provider/provider.dart';
-import 'dart:convert';
 
 Future<void> addCard(
   Map<String, int> decklist,
@@ -14,7 +13,7 @@ Future<void> addCard(
   void Function(void Function()) setState,
 ) async {
   final count = decklist[card.cardNo] ?? 0;
-  if (count >= 4) return;
+  if (count >= 4) return; // general per-card limit
   setState(() {
     decklist[card.cardNo] = count + 1;
     deckCardDetails[card.cardNo] = card;
@@ -50,31 +49,74 @@ Future<void> saveDeck(
   BuildContext context,
   Deck? existingDeck,
 ) async {
-  final normalCards = deckCardDetails.values
-      .where((card) => !(card.category.toLowerCase().contains('action point')))
-      .toList();
-  final apCards = deckCardDetails.values
-      .where((card) => card.category.toLowerCase().contains('action point'))
-      .toList();
+  // --- VALIDATION ---
 
-  final total = normalCards.fold<int>(0, (a, c) => a + (decklist[c.cardNo] ?? 0));
-  final totalAp = apCards.fold<int>(0, (a, c) => a + (decklist[c.cardNo] ?? 0));
+  int totalMain = 0;
+  int totalAP = 0;
+  Map<String, int> triggerCount = {};
 
-  if (deckname.isEmpty || total != 50 || totalAp > 3) {
+  decklist.forEach((cardNo, qty) {
+    final card = deckCardDetails[cardNo];
+    if (card == null) return;
+
+    final type = card.category.toLowerCase();
+
+    if (type.contains('action point')) {
+      totalAP += qty;
+    } else {
+      totalMain += qty;
+    }
+
+    if (card.trigger.isNotEmpty) {
+      final triggerKey = card.trigger.trim().toLowerCase();
+      triggerCount[triggerKey] = (triggerCount[triggerKey] ?? 0) + qty;
+    }
+  });
+
+  // --- Deck name & basic validation ---
+  if (deckname.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Deck must have a name.')),
+    );
+    return;
+  }
+
+  if (totalMain != 50) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Deck must have a name, 50 cards (excluding AP cards), and at most 3 Action Points',
+          'Main deck must contain exactly 50 cards (currently $totalMain).',
         ),
       ),
     );
     return;
   }
 
+  if (totalAP > 3) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('You can only include up to 3 Action Point cards.'),
+      ),
+    );
+    return;
+  }
+
+  // --- Trigger validation ---
+  triggerCount.forEach((trigger, count) {
+    if ((trigger.contains('color') ||
+            trigger.contains('final') ||
+            trigger.contains('special')) &&
+        count > 4) {
+      throw Exception(
+          'Too many cards with trigger "$trigger" (max 4, found $count).');
+    }
+  });
+
+  // --- Authentication ---
   final currentUser = context.read<UserProvider>().currentUser;
   if (currentUser == null) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('You must be logged in to save decks')),
+      const SnackBar(content: Text('You must be logged in to save decks.')),
     );
     return;
   }
@@ -90,16 +132,17 @@ Future<void> saveDeck(
       }
     }
 
-    final deckToSave = Map<String, int>.from(decklist.map((key, value) =>
-        MapEntry(utf8.encode(key).toString(), value)));
-
-    final deckCardDetailsUtf8 = Map<String, CardModel.Card>.from(deckCardDetails.map((key, value) =>
-        MapEntry(utf8.encode(key).toString(), value)));
+    // ✅ FIXED: no UTF-8 encoding — use real cardNo
+    final deckToSave = Map<String, int>.from(decklist);
+    final deckCardDetailsToSave =
+        Map<String, CardModel.Card>.from(deckCardDetails);
 
     if (exists) {
-      await api.updateDeck(existingDeck!.id, deckname, isPublic, deckToSave, deckCardDetailsUtf8);
+      await api.updateDeck(
+          existingDeck!.id, deckname, isPublic, deckToSave, deckCardDetailsToSave);
     } else {
-      await api.saveDeck(currentUser.id, deckname, isPublic, deckToSave, deckCardDetailsUtf8);
+      await api.saveDeck(
+          currentUser.id, deckname, isPublic, deckToSave, deckCardDetailsToSave);
     }
 
     ScaffoldMessenger.of(context).showSnackBar(

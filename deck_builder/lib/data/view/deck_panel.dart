@@ -124,8 +124,16 @@ class _DeckPanelState extends State<DeckPanel> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Total Cards: $totalCards / 50'),
-              Text('AP Cards: $totalAPCards / 3'),
+              Text('Main Deck: $totalCards / 50',
+                  style: TextStyle(
+                    color: totalCards == 50 ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  )),
+              Text('AP Cards: $totalAPCards / 3',
+                  style: TextStyle(
+                    color: totalAPCards <= 3 ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  )),
               const SizedBox(height: 4),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

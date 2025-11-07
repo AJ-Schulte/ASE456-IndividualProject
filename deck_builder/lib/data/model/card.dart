@@ -17,6 +17,7 @@ class Card {
   int generatedEnergy;
   String keywords;
   double marketPrice;
+  String abbreviation;
 
   Card({
     required this.id,
@@ -37,6 +38,7 @@ class Card {
     this.generatedEnergy = 0,
     this.keywords = '',
     this.marketPrice = 0.0,
+    this.abbreviation = '',
   });
 
   factory Card.empty(String name) {
@@ -58,6 +60,7 @@ class Card {
       generatedEnergy: 0,
       keywords: '',
       marketPrice: 0.0,
+      abbreviation: '',
     );
   }
 
@@ -100,6 +103,7 @@ class Card {
       generatedEnergy: parseInt(data['generatedEnergyData']),
       keywords: parseString(data['keywords']),
       marketPrice: parseDouble(data['marketPrice']),
+      abbreviation: parseString(data['abbreviation']),
     );
   }
 
@@ -122,6 +126,7 @@ class Card {
       'generatedEnergyData': generatedEnergy,
       'keywords': keywords,
       'marketPrice': marketPrice,
+      'abbreviation': abbreviation,
     };
   }
 }

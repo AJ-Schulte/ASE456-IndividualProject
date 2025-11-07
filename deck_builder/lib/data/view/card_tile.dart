@@ -31,7 +31,7 @@ class CardTile extends StatelessWidget {
           children: [
             Expanded(
               child: card.image.isNotEmpty
-                  ? Image.network(card.image, fit: BoxFit.cover, width: double.infinity)
+                  ? Image.network(card.image, fit: BoxFit.contain, width: double.infinity)
                   : Container(color: Colors.grey[100]),
             ),
             Padding(

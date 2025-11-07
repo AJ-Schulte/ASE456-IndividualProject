@@ -24,11 +24,13 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
   List<CardModel.Card> allCards = [];
   Map<String, int> decklist = {};
   Map<String, CardModel.Card> deckCardDetails = {};
-  String deckname = '';
+  String deckName = '';
   bool isPublic = false;
   bool isEditable = true;
   bool loading = true;
   bool loadingCards = false;
+  bool hideAlts = false;
+  bool hidePromos = false;
 
   String selectedSet = '';
   String? selectedColor;
@@ -40,6 +42,8 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
   List<String> availableTypes = [];
   List<String> availableRarities = [];
   List<String> availableAffinities = [];
+
+  int currentPage = 0; // 0 = Deck, 1 = Cards
 
   @override
   void initState() {
@@ -57,14 +61,16 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
       availableAffinities = filters['affinities']!;
 
       if (widget.existingDeck != null) {
-        deckname = widget.existingDeck!.deckname;
+        deckName = widget.existingDeck!.deckname;
         isPublic = widget.existingDeck!.public;
         final currentUser = context.read<UserProvider>().currentUser;
         isEditable = widget.existingDeck!.userId == currentUser?.id;
 
         for (var card in widget.existingDeck!.cards) {
           final cardNo = card['cardNo'] ?? '';
-          if (cardNo.isNotEmpty) decklist[cardNo] = (decklist[cardNo] ?? 0) + ((card['quantity'] ?? 1) as int);
+          if (cardNo.isNotEmpty) {
+            decklist[cardNo] = (decklist[cardNo] ?? 0) + ((card['quantity'] ?? 1) as int);
+          }
         }
 
         if (decklist.isNotEmpty) {
@@ -96,7 +102,7 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
   Future<void> _loadCardsForSet(String set) async {
     setState(() => loadingCards = true);
     try {
-      final cards = await api.getCards(series: set, perPage: 200);
+      final cards = await api.getCards(series: set, perPage: 1000);
       setState(() => allCards = cards);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -112,6 +118,9 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
       if (selectedType != null && c.category != selectedType) return false;
       if (selectedRarity != null && c.rarity != selectedRarity) return false;
       if (selectedAffinity != null && c.attribute != selectedAffinity) return false;
+      if (hideAlts && c.cardNo.toUpperCase().contains('-ALT')) return false;
+      if (hidePromos && c.cardNo.toUpperCase().startsWith('UEPR/')) return false;
+
       return true;
     }).toList();
   }
@@ -127,12 +136,7 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (card.image.isNotEmpty)
-                  Image.network(
-                    card.image,
-                    width: 160,
-                    height: 230,
-                    fit: BoxFit.contain,
-                  ),
+                  Image.network(card.image, width: 160, height: 230, fit: BoxFit.contain),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -147,8 +151,6 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
                       Text('Type: ${card.category}'),
                       Text('Power (BP): ${card.bp}'),
                       Text('AP Cost: ${card.ap}'),
-                      Text('Energy Cost: ${card.requiredEnergy}'),
-                      Text('Energy Gen: ${card.generatedEnergy}'),
                       const SizedBox(height: 8),
                       Text('Effect:', style: const TextStyle(fontWeight: FontWeight.bold)),
                       Text(card.effect),
@@ -168,9 +170,75 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
     );
   }
 
+  Widget _buildDeckPage() {
+    return DeckPanel(
+      deckname: deckName,
+      onDeckNameChanged: (v) => isEditable ? setState(() => deckName = v) : null,
+      isPublic: isPublic,
+      onPublicChanged: isEditable ? (v) => setState(() => isPublic = v) : (_) {},
+      decklist: decklist,
+      deckCardDetails: deckCardDetails,
+      onView: _viewCard,
+      onAdd: isEditable ? (card) => addCard(decklist, deckCardDetails, card, api, setState) : null,
+      onRemove: isEditable ? (card) => removeCard(decklist, deckCardDetails, card, api, setState) : null,
+    );
+  }
+
+  Widget _buildCardsPage() {
+    if (!isEditable) {
+      return const Center(child: Text('You can only view this deck. Editing is disabled.'));
+    }
+    return selectedSet.isEmpty
+        ? ListView(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            children: seriesMap.entries.map((e) {
+              final seriesKey = e.key;
+              final seriesName = e.value;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
+                  onPressed: () async {
+                    setState(() => selectedSet = seriesKey);
+                    await _loadCardsForSet(seriesKey);
+                  },
+                  child: Text(seriesName, textAlign: TextAlign.center),
+                ),
+              );
+            }).toList(),
+          )
+        : Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: ElevatedButton.icon(
+                  onPressed: () => setState(() => selectedSet = ''),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Back to Series'),
+                ),
+              ),
+              Expanded(
+                child: CardSelectionPanel(
+                  cards: filteredCards,
+                  decklist: decklist,
+                  onAdd: (c) => addCard(decklist, deckCardDetails, c, api, setState),
+                  onRemove: (c) => removeCard(decklist, deckCardDetails, c, api, setState),
+                  loading: loadingCards,
+                  selectedSet: selectedSet,
+                  availableSets: const [],
+                  onSetSelected: (_) {},
+                  onView: _viewCard,
+                ),
+              ),
+            ],
+          );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -179,7 +247,7 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
           if (isEditable)
             IconButton(
               icon: const Icon(Icons.save),
-              onPressed: () => saveDeck(decklist, deckCardDetails, deckname, isPublic, api, context, widget.existingDeck),
+              onPressed: () => saveDeck(decklist, deckCardDetails, deckName, isPublic, api, context, widget.existingDeck),
             ),
           IconButton(
             icon: const Icon(Icons.filter_alt),
@@ -197,79 +265,31 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
               onTypeChanged: (v) => setState(() => selectedType = v),
               onRarityChanged: (v) => setState(() => selectedRarity = v),
               onAffinityChanged: (v) => setState(() => selectedAffinity = v),
+              hideAlts: hideAlts,
+              hidePromos: hidePromos,
+              onHideAltsChanged: (v) => setState(() => hideAlts = v),
+              onHidePromosChanged: (v) => setState(() => hidePromos = v),
             ),
           ),
         ],
       ),
-      body: Row(
+      body: IndexedStack(
+        index: currentPage,
         children: [
-          // Left: Series + Card Selection Panel (50% width)
-          Expanded(
-            flex: 1,
-            child: selectedSet.isEmpty
-                ? ListView(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    children: seriesMap.entries.map((e) {
-                      final seriesKey = e.key;
-                      final seriesName = e.value;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
-                          onPressed: () async {
-                            setState(() => selectedSet = seriesKey);
-                            await _loadCardsForSet(seriesKey);
-                          },
-                          child: Text(seriesName, textAlign: TextAlign.center),
-                        ),
-                      );
-                    }).toList(),
-                  )
-                : Column(
-                    mainAxisSize: MainAxisSize.min, // prevent unbounded height error
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: ElevatedButton.icon(
-                          onPressed: () => setState(() => selectedSet = ''),
-                          icon: const Icon(Icons.arrow_back),
-                          label: const Text('Back to Series'),
-                        ),
-                      ),
-                      Flexible(
-                        child: CardSelectionPanel(
-                          cards: filteredCards,
-                          decklist: decklist,
-                          onAdd: (c) => addCard(decklist, deckCardDetails, c, api, setState),
-                          onRemove: (c) => removeCard(decklist, deckCardDetails, c, api, setState),
-                          loading: loadingCards,
-                          selectedSet: selectedSet,
-                          availableSets: const [],
-                          onSetSelected: (_) {},
-                          onView: _viewCard,
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-
-          // Right: Deck Panel (50% width)
-          Expanded(
-            flex: 1,
-            child: DeckPanel(
-              deckname: deckname,
-              onDeckNameChanged: (v) => setState(() => deckname = v),
-              isPublic: isPublic,
-              onPublicChanged: isEditable ? (v) => setState(() => isPublic = v) : (_) {},
-              decklist: decklist,
-              deckCardDetails: deckCardDetails,
-              onView: _viewCard,
-              onAdd: (card) => addCard(decklist, deckCardDetails, card, api, setState),
-              onRemove: (card) => removeCard(decklist, deckCardDetails, card, api, setState),
-            ),
-          ),
+          _buildDeckPage(),
+          _buildCardsPage(),
         ],
       ),
+      bottomNavigationBar: isEditable
+      ? BottomNavigationBar(
+          currentIndex: currentPage,
+          onTap: (index) => setState(() => currentPage = index),
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Deck'),
+            BottomNavigationBarItem(icon: Icon(Icons.style), label: 'Cards'),
+          ],
+        )
+      : null,
     );
   }
 }

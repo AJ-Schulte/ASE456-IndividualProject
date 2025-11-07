@@ -10,7 +10,6 @@ class CardSelectionPanel extends StatelessWidget {
   final bool loading;
   final void Function(CardModel.Card) onView;
 
-  // New properties for set selection
   final String selectedSet;
   final List<String> availableSets;
   final void Function(String) onSetSelected;
@@ -35,7 +34,7 @@ class CardSelectionPanel extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         return SizedBox(
-          height: constraints.maxHeight, // bounded height for GridView
+          height: constraints.maxHeight, 
           child: GridView.builder(
             padding: const EdgeInsets.all(8),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
