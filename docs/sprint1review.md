@@ -16,10 +16,6 @@ Cross-Platform Development – ASE456
 
 ---
 
-1. **Demo**
-   - Images of current working application
-
----
 
 Home Page
 
@@ -52,12 +48,11 @@ DeckBuilder View
 ---
 
 1. **Sprint 1 Retrospective**
-   - Project metrics: LoC, # of features, # of requirements, and burndown rate  
+   - Project metrics: # of features, # of requirements, and burndown rate  
    - What Went Wrong/Well with Analysis & Improvement Plan
 
 ---
 
-- **Total individual Lines of Code (LoC):** __~6000__  
 - **Number of individual features completed:** __2__  
 - **Number of individual requirements completed:** __8__  
 - **Individual burndown rate (%):** __40__  
