@@ -4,6 +4,7 @@ import 'package:deck_builder/data/util/api.dart';
 import 'package:deck_builder/data/model/deck.dart';
 import 'package:deck_builder/data/util/user_provider.dart';
 import 'deck_builder.dart';
+import 'top_nav_appbar.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -103,18 +104,7 @@ class HomePageState extends State<HomePage> {
     final isLoggedIn = context.watch<UserProvider>().isLoggedIn;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home'),
-        actions: [
-          IconButton(icon: const Icon(Icons.add), onPressed: createNewDeck),
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () {
-              Navigator.pushNamed(context, isLoggedIn ? '/profile' : '/login');
-            },
-          ),
-        ],
-      ),
+      appBar: const TopNavAppBar(title: "Home"),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : errorMessage != null

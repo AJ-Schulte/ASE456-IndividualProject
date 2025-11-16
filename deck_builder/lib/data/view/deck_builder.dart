@@ -5,6 +5,7 @@ import 'package:deck_builder/data/model/deck.dart';
 import 'package:deck_builder/data/util/api.dart';
 import 'package:deck_builder/data/util/user_provider.dart';
 import 'package:deck_builder/data/util/deck_utils.dart';
+import 'package:deck_builder/data/view/top_nav_appbar.dart';
 import 'package:deck_builder/data/util/deck_filters.dart';
 import 'package:deck_builder/data/view/card_selection_panel.dart';
 import 'package:deck_builder/data/view/deck_panel.dart';
@@ -241,14 +242,23 @@ class DeckBuilderPageState extends State<DeckBuilderPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isEditable ? 'Deck Builder' : 'View Deck'),
-        actions: [
+      appBar: TopNavAppBar(
+        title: isEditable ? "Deck Builder" : "View Deck",
+        extraActions: [
           if (isEditable)
             IconButton(
               icon: const Icon(Icons.save),
-              onPressed: () => saveDeck(decklist, deckCardDetails, deckName, isPublic, api, context, widget.existingDeck),
+              onPressed: () => saveDeck(
+                decklist,
+                deckCardDetails,
+                deckName,
+                isPublic,
+                api,
+                context,
+                widget.existingDeck,
+              ),
             ),
+
           IconButton(
             icon: const Icon(Icons.filter_alt),
             onPressed: () => showDeckFilters(

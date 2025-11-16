@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:deck_builder/data/util/api.dart';
 import 'package:deck_builder/data/util/user_provider.dart';
 import 'package:deck_builder/data/model/user.dart';
+import 'package:deck_builder/data/view/top_nav_appbar.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -76,7 +77,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(isSignup ? 'Sign Up' : 'Login')),
+      appBar: TopNavAppBar(title: isSignup ? "Sign Up" : "Login",),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(

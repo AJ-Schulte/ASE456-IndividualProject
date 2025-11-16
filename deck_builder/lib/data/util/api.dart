@@ -78,6 +78,26 @@ class APIRunner {
     return jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
   }
 
+  Future<void> deleteUserAndDecks(String userId) async {
+    final decks = await getUserDecks(userId);
+    
+    for (final deck in decks) {
+      final uri = Uri.parse('$pocketbase/api/collections/decks/records/${deck.id}');
+      final resp = await http.delete(uri);
+
+      if (resp.statusCode != 204 && resp.statusCode != 200) {
+        throw Exception('Failed to delete deck ${deck.id}: ${resp.statusCode} ${resp.body}');
+      }
+    }
+
+    final uriUser = Uri.parse('$pocketbase/api/collections/users/records/$userId');
+    final respUser = await http.delete(uriUser);
+
+    if (respUser.statusCode != 204 && respUser.statusCode != 200) {
+      throw Exception('Failed to delete user: ${respUser.statusCode} ${respUser.body}');
+    }
+  }
+
   // ---------------- CARDS ----------------
   Future<List<CardModel.Card>> getCards({
     int page = 1,

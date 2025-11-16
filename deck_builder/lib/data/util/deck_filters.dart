@@ -19,20 +19,39 @@ Future<void> showDeckFilters({
   required void Function(bool) onHideAltsChanged,
   required void Function(bool) onHidePromosChanged,
 }) {
-  DropdownButton<String> buildDropdown(
+  Widget buildLabeledDropdown(
     String label,
     List<String> items,
     String? selected,
     void Function(String?) onChanged,
   ) {
-    return DropdownButton<String>(
-      hint: Text(label),
-      isExpanded: true,
-      value: selected,
-      items: [null, ...items]
-          .map((c) => DropdownMenuItem(value: c, child: Text(c ?? 'Any')))
-          .toList(),
-      onChanged: onChanged,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              )),
+          const SizedBox(height: 4),
+          DropdownButton<String>(
+            isExpanded: true,
+            value: selected,
+            hint: const Text("Any"),
+            items: [null, ...items]
+                .map(
+                  (c) => DropdownMenuItem(
+                    value: c,
+                    child: Text(c ?? 'Any'),
+                  ),
+                )
+                .toList(),
+            onChanged: onChanged,
+          ),
+        ],
+      ),
     );
   }
 
@@ -49,11 +68,13 @@ Future<void> showDeckFilters({
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                buildDropdown('Color', colors, selectedColor, onColorChanged),
-                buildDropdown('Type', types, selectedType, onTypeChanged),
-                buildDropdown('Rarity', rarities, selectedRarity, onRarityChanged),
-                buildDropdown('Affinity', affinities, selectedAffinity, onAffinityChanged),
-                const SizedBox(height: 16),
+                buildLabeledDropdown('Color', colors, selectedColor, onColorChanged),
+                buildLabeledDropdown('Type', types, selectedType, onTypeChanged),
+                buildLabeledDropdown('Rarity', rarities, selectedRarity, onRarityChanged),
+                buildLabeledDropdown('Affinity', affinities, selectedAffinity, onAffinityChanged),
+
+                const SizedBox(height: 12),
+
                 SwitchListTile(
                   title: const Text('Hide Alternate Arts'),
                   value: localHideAlts,
@@ -62,6 +83,7 @@ Future<void> showDeckFilters({
                     onHideAltsChanged(v);
                   },
                 ),
+
                 SwitchListTile(
                   title: const Text('Hide Promo / Release Event Cards'),
                   value: localHidePromos,
