@@ -14,14 +14,14 @@ creation tools, a profile page, and public deck browsing.
      │    ├── util/         # API logic, providers, utilities
      │    └── view/         # UI pages (Home, Login, Profile, Deck Builder)
      ├── main.dart          # Entry point
-
+---
 ## Requirements
 
 -   Flutter SDK (3.10+ recommended)
 -   Dart SDK (included with Flutter)
 -   PocketBase backend
 -   Internet access for API calls
-
+---
 ## Setup Instructions
 
 ### 1. Install Flutter
@@ -31,11 +31,11 @@ Follow: https://docs.flutter.dev/get-started/install
 Verify installation:
 
     flutter doctor
-
+---
 ### 2. Install Dependencies
 
     flutter pub get
-
+---
 ### 3. Configure PocketBase
 
 Navigate to PocketBase from main:
@@ -50,52 +50,61 @@ Required collections: - `users` - `decks` - `cards`
 
 Make sure `api.dart` points to your PocketBase URL.
 
-### 4. Run the App from deck_builder
+---
+### 4. Run the App 
+Navigate to main file (deck_builder)
+
+Then run with this command
 
     flutter run
-
+---
 ## Feature Guide
 
 ### Home Page
 
 -   Displays public decks.
--   Pull to refresh.
--   Tap deck → open in Deck Builder.
+-   Tap Plus Button to create new deck → opens Deck Builder.
 -   Create Deck when logged in.
-
+---
 ### Login Page
 
--   Email + password login.
+-   Username + password login.
 -   Session stored via `UserProvider`.
 
+### Sign Up Page
+
+- Email + username + password account creation
+
+---
 ### Profile Page
 
 -   Shows logged-in user info.
 -   Displays user's decks.
 -   Delete decks.
 -   Logout option.
-
+---
 ### Deck Builder
 
 -   Create or edit decks.
 -   Add/remove cards.
 -   Save as public or private.
-
+---
 ### API System (APIRunner)
 
 Handles: - Authentication - Fetching decks / cards - CRUD operations for
 decks - Fetching users
 
+---
 ## Running Tests
 
 Tests are located in:
 
     test/
 
-Run all tests:
+Run all tests from deck_builder folder:
 
     flutter test
-
+---
 ## Troubleshooting
 
 ### PocketBase connection errors
@@ -103,13 +112,14 @@ Run all tests:
 Check: - Server is running. - API URLs are correct. - CORS allows
 Flutter requests.
 
+---
 ### Tests failing
 
 Make sure dependencies exist:
 
     flutter pub add mocktail
     flutter pub add flutter_test
-
+---
 ## Conclusion
 
 This project provides a full end-to-end deck builder system using
