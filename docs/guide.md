@@ -38,7 +38,7 @@ Verify installation:
 ---
 ### 3. Configure PocketBase
 
-Navigate to PocketBase from main:
+In a Terminal, Navigate to PocketBase from main:
      
     cd ./deck_builder/pocketbase
 
@@ -52,7 +52,7 @@ Make sure `api.dart` points to your PocketBase URL.
 
 ---
 ### 4. Run the App 
-Navigate to main file (deck_builder)
+In a separate Terminal, Navigate to deck_builder folder
 
 Then run with this command
 
